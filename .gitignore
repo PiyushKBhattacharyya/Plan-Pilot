@@ -3,3 +3,6 @@ node_modules
 dist
 .vscode
 .env
+out
+.DS_Store
+*.log

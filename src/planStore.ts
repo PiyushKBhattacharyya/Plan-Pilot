@@ -1,16 +1,14 @@
 import * as vscode from "vscode";
 import { Plan } from "./types";
 
-const KEY = "planpilot.plan";
-
 export class PlanStore {
-  constructor(private memento: vscode.Memento) {}
+  constructor(private state: vscode.Memento) {}
 
-  load(): Plan | undefined {
-    return this.memento.get<Plan>(KEY);
+  async save(plan?: Plan) {
+    await this.state.update("planpilot.plan", plan);
   }
 
-  save(plan: Plan | undefined) {
-    return this.memento.update(KEY, plan);
+  load(): Plan | undefined {
+    return this.state.get<Plan>("planpilot.plan");
   }
 }

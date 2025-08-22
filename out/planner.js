@@ -1,38 +1,30 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generatePlan = generatePlan;
-function newId() {
-    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-function makeStep(title, description, agent) {
-    return {
-        id: newId(),
-        title,
-        description,
-        agent,
-        status: "pending"
-    };
-}
+exports.suggestNextSteps = suggestNextSteps;
+// Simple plan generation
 function generatePlan(request) {
-    const lower = request.toLowerCase();
-    const steps = lower.includes("rest api") || lower.includes("express") || lower.includes("api")
-        ? [
-            makeStep("Bootstrap project", "Set up Node.js + Express basic structure", "scaffolder"),
-            makeStep("Define domain model", "Design Todo model and TypeScript types", "researcher"),
-            makeStep("Implement CRUD", "Add /todos CRUD endpoints with validation", "scaffolder"),
-            makeStep("Add error handling & tests", "Add error middleware and unit tests", "refactorer")
-        ]
-        : [
-            makeStep("Research", `Outline solution for: ${request}`, "researcher"),
-            makeStep("Scaffold", "Create initial files/folders", "scaffolder"),
-            makeStep("Implement", "Write core feature code", "scaffolder"),
-            makeStep("Refactor & test", "Polish, tests, and docs", "refactorer")
-        ];
     return {
-        id: newId(),
         request,
-        steps,
-        createdAt: Date.now()
+        steps: [
+            { id: "s1", title: "Analyze request", description: request, agent: "Researcher", status: "pending" },
+            { id: "s2", title: "Scaffold basic files", description: "Create project structure", agent: "Scaffolder", status: "pending" },
+            { id: "s3", title: "Refactor & optimize", description: "Cleanup code", agent: "Refactorer", status: "pending" },
+        ],
+        suggestions: []
     };
+}
+// Suggestions
+function suggestNextSteps(plan) {
+    const pendingCount = plan.steps.filter(s => s.status === "pending").length;
+    const suggestions = [];
+    if (pendingCount === 0)
+        suggestions.push("All steps done! Consider adding new tasks.");
+    else {
+        suggestions.push("Prioritize high-impact steps first.");
+        suggestions.push("Break down complex steps into smaller subtasks.");
+        suggestions.push("Review completed steps for possible refactoring.");
+    }
+    return suggestions;
 }
 //# sourceMappingURL=planner.js.map

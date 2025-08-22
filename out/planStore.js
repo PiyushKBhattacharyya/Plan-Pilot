@@ -1,16 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PlanStore = void 0;
-const KEY = "planpilot.plan";
 class PlanStore {
-    constructor(memento) {
-        this.memento = memento;
+    constructor(state) {
+        this.state = state;
+    }
+    async save(plan) {
+        await this.state.update("planpilot.plan", plan);
     }
     load() {
-        return this.memento.get(KEY);
-    }
-    save(plan) {
-        return this.memento.update(KEY, plan);
+        return this.state.get("planpilot.plan");
     }
 }
 exports.PlanStore = PlanStore;

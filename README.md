@@ -6,8 +6,6 @@ A from-scratch, TypeScript VS Code extension that demonstrates Traycer’s core 
 * Generate a structured plan from a natural-language task
 * Visually manage the plan in a Webview (add/edit/reorder/delete steps)
 * Execute steps individually or the whole plan (mock agent outputs written to `.planpilot/`)
-* Track status via a Tree View in the Explorer
-* Persist plan in workspace state
 
 ---
 

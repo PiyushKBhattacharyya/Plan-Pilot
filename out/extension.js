@@ -43,154 +43,112 @@ const agents_1 = require("./agents");
 function activate(context) {
     const store = new planStore_1.PlanStore(context.workspaceState);
     context.subscriptions.push(vscode.commands.registerCommand("planpilot.openPlanner", () => {
-        const panel = vscode.window.createWebviewPanel("planpilot", "PlanPilot", vscode.ViewColumn.One, {
+        const panel = vscode.window.createWebviewPanel("planpilot", "PlanPilot — Traycer Clone", vscode.ViewColumn.One, {
             enableScripts: true,
             retainContextWhenHidden: true
         });
         panel.webview.html = (0, webviewContent_1.getWebviewContent)(panel, context.extensionUri);
-        // Send current plan helper
-        const sendPlan = (plan) => {
-            panel.webview.postMessage({ type: "plan", plan: plan ?? undefined });
-        };
-        // handle messages from webview
+        const sendPlan = (plan) => panel.webview.postMessage({ type: "plan", plan });
         panel.webview.onDidReceiveMessage(async (msg) => {
+            let plan = store.load();
             switch (msg.type) {
-                case "ready": {
-                    const plan = store.load();
+                case "ready":
                     sendPlan(plan);
                     break;
-                }
-                case "generate": {
-                    const request = msg.request;
-                    const plan = (0, planner_1.generatePlan)(request);
-                    await store.save(plan);
-                    sendPlan(plan);
-                    vscode.window.showInformationMessage("PlanPilot: plan generated.");
-                    break;
-                }
-                case "addStep": {
-                    const s = msg.step;
-                    const plan = store.load();
-                    if (!plan) {
-                        vscode.window.showWarningMessage("No plan exists. Generate a plan first.");
-                        break;
-                    }
-                    const newStep = {
-                        id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-                        title: s.title,
-                        description: s.description || "",
-                        agent: (s.agent ?? "scaffolder"),
-                        status: "pending"
-                    };
-                    plan.steps.push(newStep);
+                case "generate":
+                    plan = (0, planner_1.generatePlan)(msg.request);
+                    plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
                     sendPlan(plan);
                     break;
-                }
-                case "updateStep": {
-                    const updated = msg.step;
-                    const plan = store.load();
+                case "addStep":
+                    if (!plan)
+                        plan = { steps: [], request: "Manual", suggestions: [] };
+                    plan.steps.push({ id: `${Date.now()}`, title: msg.step.title, description: msg.step.description, agent: msg.step.agent, status: "pending" });
+                    plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
+                    await store.save(plan);
+                    sendPlan(plan);
+                    break;
+                case "updateStep":
                     if (!plan)
                         break;
-                    const idx = plan.steps.findIndex(p => p.id === updated.id);
+                    const idx = plan.steps.findIndex(s => s.id === msg.step.id);
                     if (idx === -1)
                         break;
-                    plan.steps[idx].title = updated.title;
-                    plan.steps[idx].description = updated.description;
-                    if (updated.agent)
-                        plan.steps[idx].agent = updated.agent;
+                    plan.steps[idx] = { ...plan.steps[idx], ...msg.step };
+                    plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
                     sendPlan(plan);
                     break;
-                }
-                case "deleteStep": {
-                    const id = msg.id;
-                    const plan = store.load();
+                case "deleteStep":
                     if (!plan)
                         break;
-                    plan.steps = plan.steps.filter(s => s.id !== id);
+                    plan.steps = plan.steps.filter(s => s.id !== msg.id);
+                    plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
                     sendPlan(plan);
                     break;
-                }
-                case "moveStep": {
-                    const id = msg.id;
-                    const status = msg.status;
-                    const plan = store.load();
+                case "moveStep":
                     if (!plan)
                         break;
-                    const step = plan.steps.find(s => s.id === id);
-                    if (!step)
+                    const s = plan.steps.find(s => s.id === msg.id);
+                    if (!s)
                         break;
-                    step.status = status;
+                    s.status = msg.status;
+                    plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
                     sendPlan(plan);
                     break;
-                }
-                case "executeStep": {
-                    const id = msg.id;
-                    const plan = store.load();
+                case "executeStep":
                     if (!plan)
                         break;
-                    const step = plan.steps.find(s => s.id === id);
-                    if (!step)
+                    const se = plan.steps.find(s => s.id === msg.id);
+                    if (!se)
                         break;
-                    // mark in-progress and notify UI
-                    step.status = "in-progress";
-                    await store.save(plan);
-                    panel.webview.postMessage({ type: "update", plan });
-                    // run agent
-                    const { outputUri, error } = await (0, agents_1.runAgent)(step);
+                    se.status = "in-progress";
+                    sendPlan(plan);
+                    const { outputUri, error } = await (0, agents_1.runAgent)(se);
                     if (error) {
-                        step.status = "error";
-                        step.error = error;
+                        se.status = "error";
+                        se.error = error;
                     }
                     else {
-                        step.status = "done";
-                        step.outputUri = outputUri;
+                        se.status = "done";
+                        se.outputUri = outputUri;
                     }
+                    plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
-                    panel.webview.postMessage({ type: "update", plan });
+                    sendPlan(plan);
                     break;
-                }
-                case "executeAll": {
-                    let plan = store.load();
+                case "executeAll":
                     if (!plan)
                         break;
-                    // run sequentially
-                    for (const s of plan.steps) {
-                        if (s.status === "done")
+                    for (const st of plan.steps) {
+                        if (st.status === "done")
                             continue;
-                        s.status = "in-progress";
-                        await store.save(plan);
-                        panel.webview.postMessage({ type: "update", plan });
-                        const { outputUri, error } = await (0, agents_1.runAgent)(s);
+                        st.status = "in-progress";
+                        sendPlan(plan);
+                        const { outputUri, error } = await (0, agents_1.runAgent)(st);
                         if (error) {
-                            s.status = "error";
-                            s.error = error;
+                            st.status = "error";
+                            st.error = error;
                         }
                         else {
-                            s.status = "done";
-                            s.outputUri = outputUri;
+                            st.status = "done";
+                            st.outputUri = outputUri;
                         }
+                        plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                         await store.save(plan);
-                        panel.webview.postMessage({ type: "update", plan });
+                        sendPlan(plan);
                     }
-                    vscode.window.showInformationMessage("PlanPilot: execute all finished.");
+                    vscode.window.showInformationMessage("PlanPilot: All steps executed");
                     break;
-                }
-                case "resetPlan": {
+                case "resetPlan":
                     await store.save(undefined);
                     sendPlan(undefined);
-                    vscode.window.showInformationMessage("PlanPilot: plan reset.");
+                    vscode.window.showInformationMessage("PlanPilot: Plan reset");
                     break;
-                }
-                default:
-                    console.warn("Unknown message from webview", msg);
             }
-        });
-        panel.onDidDispose(() => {
-            // nothing special for now
         });
     }));
 }

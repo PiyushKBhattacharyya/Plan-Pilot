@@ -1,19 +1,17 @@
-export type StepStatus = "pending" | "in-progress" | "done" | "error";
-export type AgentKind = "scaffolder" | "researcher" | "refactorer";
+export type AgentType = "Scaffolder" | "Researcher" | "Refactorer";
 
 export interface PlanStep {
   id: string;
   title: string;
   description: string;
-  agent: AgentKind;
-  status: StepStatus;
+  agent: AgentType;
+  status: "pending" | "in-progress" | "done" | "error";
   outputUri?: string;
   error?: string;
 }
 
 export interface Plan {
-  id: string;
-  request: string;
+  request?: string;
   steps: PlanStep[];
-  createdAt: number;
+  suggestions?: string[];
 }
