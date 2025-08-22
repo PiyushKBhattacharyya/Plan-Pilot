@@ -17,6 +17,7 @@ main { display:flex; gap:12px; align-items:flex-start; }
 .status-done { color:var(--ok); }
 .status-error { color:var(--bad); }
 footer { margin-top:12px; color:var(--muted); font-size:12px; }
+#contextPane { flex:1; background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; min-height:240px; }
 `;
 
 // JS scripts for board rendering and UI
@@ -54,9 +55,13 @@ function renderCard(step) {
     vscode.postMessage({ type:'updateStep', step:{id:step.id,title:newTitle,description:newDesc,agent:newAgent} });
   };
   const delBtn = el('button', {}, 'Delete');
-  delBtn.onclick = () => { if(confirm('Delete this step?')) vscode.postMessage({ type:'deleteStep', id:step.id }); };
-  actions.append(execBtn, editBtn, delBtn);
+  delBtn.onclick = () => { 
+    if(confirm('Delete this step?')) {
+      vscode.postMessage({ type:'deleteStep', id:step.id });
+    }
+  };
 
+  actions.append(execBtn, editBtn, delBtn);
   card.append(title, desc, agent, statusLine, actions);
 
   // Drag & Drop
@@ -67,7 +72,12 @@ function renderCard(step) {
 // Render entire board
 function renderBoard() {
   ['pendingList','inProgressList','doneList'].forEach(id => document.getElementById(id).innerHTML = '');
-  if(!plan){ document.getElementById('planInfo').textContent='No plan loaded'; document.getElementById('suggestionList').innerHTML=''; return; }
+  if(!plan){ 
+    document.getElementById('planInfo').textContent='No plan loaded'; 
+    document.getElementById('suggestionList').innerHTML='';
+    renderContext(undefined);
+    return; 
+  }
   document.getElementById('planInfo').textContent = 'Plan: ' + (plan.request||'Manual');
 
   plan.steps.forEach(step => {
@@ -88,6 +98,20 @@ function renderSuggestions() {
   const list = document.getElementById('suggestionList'); list.innerHTML = '';
   if(!plan || !plan.suggestions) return;
   plan.suggestions.forEach(s => list.appendChild(el('div', { class:'card' }, s)));
+}
+
+// Render context
+function renderContext(ctx) {
+  const pane = document.getElementById('contextPane');
+  if (!pane) return;
+  if (!ctx) { pane.innerHTML = "<i>No context</i>"; return; }
+  pane.innerHTML = \`
+    <h3>Codespace Context</h3>
+    <p><b>Repo:</b> \${ctx.repoName || 'N/A'}</p>
+    <p><b>Files:</b> \${ctx.fileCount}</p>
+    <p><b>Languages:</b> \${JSON.stringify(ctx.languageStats)}</p>
+    <p><b>Recent Files:</b><br>\${ctx.recentFiles?.join("<br>") || ''}</p>
+  \`;
 }
 
 // Drag & drop events
@@ -119,8 +143,19 @@ document.getElementById('resetBtn').addEventListener('click', () => { if(confirm
 // Handle messages from extension
 window.addEventListener('message', event => {
   const msg = event.data;
-  if(msg.type==='plan'||msg.type==='update'){ plan=msg.plan; renderBoard(); }
-  else if(msg.type==='notification'){ alert(msg.text); }
+  if(msg.type==='plan' || msg.type==='update'){ 
+    plan=msg.plan; 
+    renderBoard(); 
+    renderContext(msg.context);
+  }
+  else if(msg.type==='notification'){ 
+    alert(msg.text); 
+  }
+  else if(msg.type==='reset'){ 
+    plan = undefined;
+    renderBoard(); 
+    renderContext(undefined);
+  }
 });
 
 // Signal ready

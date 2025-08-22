@@ -41,32 +41,28 @@ const webviewContent_1 = require("./webviewContent");
 const planStore_1 = require("./planStore");
 const planner_1 = require("./planner");
 const agents_1 = require("./agents");
-/**
-  Activate PlanPilot extension
-    - @param context - VS Code extension context
-*/
+const context_1 = require("./context");
 function activate(context) {
     const store = new planStore_1.PlanStore(context.workspaceState);
-    const openPlannerCmd = vscode.commands.registerCommand("planpilot.openPlanner", () => {
-        const panel = vscode.window.createWebviewPanel("planpilot", "PlanPilot — Planning Done Simple", vscode.ViewColumn.One, {
-            enableScripts: true,
-            retainContextWhenHidden: true,
-        });
+    context.subscriptions.push(vscode.commands.registerCommand("planpilot.openPlanner", () => {
+        const panel = vscode.window.createWebviewPanel("planpilot", "PlanPilot — Planning Done Simple", vscode.ViewColumn.One, { enableScripts: true, retainContextWhenHidden: true });
         panel.webview.html = (0, webviewContent_1.getWebviewContent)(panel, context.extensionUri);
-        // Helper to send current plan to webview
-        const sendPlan = (plan) => panel.webview.postMessage({ type: "plan", plan });
-        // Listen to messages from webview
+        // Always send both plan and context
+        const sendPlan = async (plan) => {
+            const ctx = await (0, context_1.getCodespaceContext)();
+            panel.webview.postMessage({ type: "plan", plan, context: ctx });
+        };
         panel.webview.onDidReceiveMessage(async (msg) => {
             let plan = store.load();
             switch (msg.type) {
                 case "ready":
-                    sendPlan(plan);
+                    await sendPlan(plan);
                     break;
                 case "generate":
                     plan = (0, planner_1.generatePlan)(msg.request);
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
-                    sendPlan(plan);
+                    await sendPlan(plan);
                     break;
                 case "addStep":
                     if (!plan)
@@ -80,93 +76,93 @@ function activate(context) {
                     });
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
-                    sendPlan(plan);
+                    await sendPlan(plan);
                     break;
-                case "updateStep":
+                case "updateStep": {
                     if (!plan)
                         break;
                     const idx = plan.steps.findIndex((s) => s.id === msg.step.id);
                     if (idx === -1)
                         break;
-                    plan.steps[idx] = { ...plan.steps[idx], ...msg.step };
+                    plan.steps[idx] = { ...plan.steps[idx], ...msg.step }; // ← fix bad spread
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
-                    sendPlan(plan);
+                    await sendPlan(plan);
                     break;
+                }
                 case "deleteStep":
                     if (!plan)
                         break;
                     plan.steps = plan.steps.filter((s) => s.id !== msg.id);
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
-                    sendPlan(plan);
+                    await sendPlan(plan);
                     break;
-                case "moveStep":
+                case "moveStep": {
                     if (!plan)
                         break;
-                    const stepToMove = plan.steps.find((s) => s.id === msg.id);
-                    if (!stepToMove)
+                    const step = plan.steps.find((s) => s.id === msg.id);
+                    if (!step)
                         break;
-                    stepToMove.status = msg.status;
+                    step.status = msg.status;
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
-                    sendPlan(plan);
+                    await sendPlan(plan);
                     break;
-                case "executeStep":
+                }
+                case "executeStep": {
                     if (!plan)
                         break;
-                    const stepToExec = plan.steps.find((s) => s.id === msg.id);
-                    if (!stepToExec)
+                    const step = plan.steps.find((s) => s.id === msg.id);
+                    if (!step)
                         break;
-                    stepToExec.status = "in-progress";
-                    sendPlan(plan);
-                    const { outputUri, error } = await (0, agents_1.runAgent)(stepToExec);
-                    if (error) {
-                        stepToExec.status = "error";
-                        stepToExec.error = error;
+                    step.status = "in-progress";
+                    await sendPlan(plan);
+                    const res = await (0, agents_1.runAgent)(step);
+                    if (res.error) {
+                        step.status = "error";
+                        step.description += `\nError: ${res.error}`;
                     }
                     else {
-                        stepToExec.status = "done";
-                        stepToExec.outputUri = outputUri;
+                        step.status = "done";
+                        if (res.outputUri)
+                            step.description += `\nOutput: ${res.outputUri}`;
                     }
-                    plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
-                    sendPlan(plan);
+                    await sendPlan(plan);
                     break;
+                }
                 case "executeAll":
                     if (!plan)
                         break;
-                    for (const st of plan.steps) {
-                        if (st.status === "done")
-                            continue;
-                        st.status = "in-progress";
-                        sendPlan(plan);
-                        const { outputUri, error } = await (0, agents_1.runAgent)(st);
-                        if (error) {
-                            st.status = "error";
-                            st.error = error;
+                    for (const step of plan.steps) {
+                        step.status = "in-progress";
+                        await sendPlan(plan);
+                        const res = await (0, agents_1.runAgent)(step);
+                        if (res.error) {
+                            step.status = "error";
+                            step.description += `\nError: ${res.error}`;
                         }
                         else {
-                            st.status = "done";
-                            st.outputUri = outputUri;
+                            step.status = "done";
+                            if (res.outputUri)
+                                step.description += `\nOutput: ${res.outputUri}`;
                         }
-                        plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
-                        await store.save(plan);
-                        sendPlan(plan);
                     }
-                    vscode.window.showInformationMessage("PlanPilot: All steps executed");
+                    await store.save(plan);
+                    await sendPlan(plan);
                     break;
                 case "resetPlan":
                     await store.reset();
-                    sendPlan(undefined);
+                    await sendPlan(undefined); // clears board; context still shown
                     vscode.window.showInformationMessage("Plan reset.");
                     break;
-                default:
-                    console.warn("Unknown message type:", msg.type);
+                case "getContext": // on-demand refresh from webview
+                    await sendPlan(plan);
+                    break;
             }
         });
-    });
-    context.subscriptions.push(openPlannerCmd);
+    }));
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

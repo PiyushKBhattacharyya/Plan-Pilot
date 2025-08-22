@@ -1,23 +1,26 @@
+import * as fs from "fs";
+import * as path from "path";
+import { workspace } from "vscode";
 import { PlanStep } from "./types";
 
-/**  
-  Simulates the execution of a coding agent for a given plan step.
-    - @param step - The plan step to execute.
-    - @returns A promise that resolves with an output URI or an error message.
- */
 export async function runAgent(
   step: PlanStep
 ): Promise<{ outputUri?: string; error?: string }> {
-  return new Promise((resolve) => {
-    // Simulate asynchronous agent execution with a delay
-    setTimeout(() => {
-      const isError = Math.random() < 0.1; // 10% chance of failure
+  try {
+    const folder = workspace.workspaceFolders?.[0].uri.fsPath;
+    if (!folder) throw new Error("No workspace open");
 
-      if (isError) {
-        resolve({ error: "Simulated agent error" });
-      } else {
-        resolve({ outputUri: `output://${step.id}` });
-      }
-    }, 800); // 800ms delay to mimic execution
-  });
+    const outDir = path.join(folder, "planpilot", "steps");
+    fs.mkdirSync(outDir, { recursive: true });
+
+    const filePath = path.join(outDir, `${step.id}.md`);
+    fs.writeFileSync(
+      filePath,
+      `# Step: ${step.title}\n\nAgent: ${step.agent}\n\n${step.description}\n\nGenerated at ${new Date().toISOString()}`
+    );
+
+    return { outputUri: filePath };
+  } catch (e: any) {
+    return { error: e.message };
+  }
 }
