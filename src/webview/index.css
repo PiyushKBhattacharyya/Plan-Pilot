@@ -1,0 +1,113 @@
+body {
+  font-family: Segoe UI, sans-serif;
+  margin: 0;
+  padding: 12px;
+  background: #0f1720;
+  color: #e6eef8;
+}
+
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.controls {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+input[type=text] {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: #1f2937;
+  color: white;
+  min-width: 300px;
+}
+
+button {
+  background: #4f46e5;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid #4f46e5;
+}
+
+main {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.column {
+  background: #0b1220;
+  padding: 10px;
+  border-radius: 8px;
+  width: 320px;
+  min-height: 240px;
+}
+
+.col-title {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #94a3b8;
+}
+
+.card {
+  background: #1e293b;
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: grab;
+  transition: transform 0.2s;
+}
+
+.card:hover { transform: scale(1.02); }
+
+.card .meta {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.card .actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.status-done { color: #10b981; }
+.status-error { color: #ef4444; }
+
+footer {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.log {
+  font-size: 12px;
+  color: #cbd5e1;
+  max-height: 100px;
+  overflow: auto;
+  margin-top: 6px;
+  border-top: 1px solid #333;
+  padding-top: 4px;
+}

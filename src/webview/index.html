@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; style-src 'unsafe-inline'; img-src https:; script-src 'nonce-{{nonce}}';">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlanPilot — Traycer Clone</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+    <body>
+
+    <header>
+    <h1>PlanPilot — Traycer Clone</h1>
+    <div class="controls">
+        <input id="taskInput" type="text" placeholder="Describe a task">
+        <button id="generateBtn">Generate Plan</button>
+        <button id="addBtn" class="ghost">Add Step</button>
+        <button id="execAllBtn" class="ghost">Execute All</button>
+        <button id="resetBtn" class="ghost">Reset</button>
+    </div>
+    </header>
+
+    <main>
+    <div class="column" data-column="pending">
+        <div class="col-title"><span>To Do</span><span id="countPending"></span></div>
+        <div id="pendingList"></div>
+    </div>
+    <div class="column" data-column="in-progress">
+        <div class="col-title"><span>In Progress</span><span id="countInProgress"></span></div>
+        <div id="inProgressList"></div>
+    </div>
+    <div class="column" data-column="done">
+        <div class="col-title"><span>Done</span><span id="countDone"></span></div>
+        <div id="doneList"></div>
+    </div>
+    </main>
+
+    <footer>
+    <span id="planInfo">No plan loaded</span>
+    <div class="log" id="logConsole"></div>
+    </footer>
+
+    <script nonce="{{nonce}}" src="index.js"></script>
+    </body>
+</html>

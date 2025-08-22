@@ -35,20 +35,27 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = activate;
 exports.deactivate = deactivate;
+// src/extension.ts
 const vscode = __importStar(require("vscode"));
 const webviewContent_1 = require("./webviewContent");
 const planStore_1 = require("./planStore");
 const planner_1 = require("./planner");
 const agents_1 = require("./agents");
+/**
+  Activate PlanPilot extension
+    - @param context - VS Code extension context
+*/
 function activate(context) {
     const store = new planStore_1.PlanStore(context.workspaceState);
-    context.subscriptions.push(vscode.commands.registerCommand("planpilot.openPlanner", () => {
-        const panel = vscode.window.createWebviewPanel("planpilot", "PlanPilot — Traycer Clone", vscode.ViewColumn.One, {
+    const openPlannerCmd = vscode.commands.registerCommand("planpilot.openPlanner", () => {
+        const panel = vscode.window.createWebviewPanel("planpilot", "PlanPilot — Planning Done Simple", vscode.ViewColumn.One, {
             enableScripts: true,
-            retainContextWhenHidden: true
+            retainContextWhenHidden: true,
         });
         panel.webview.html = (0, webviewContent_1.getWebviewContent)(panel, context.extensionUri);
+        // Helper to send current plan to webview
         const sendPlan = (plan) => panel.webview.postMessage({ type: "plan", plan });
+        // Listen to messages from webview
         panel.webview.onDidReceiveMessage(async (msg) => {
             let plan = store.load();
             switch (msg.type) {
@@ -64,7 +71,13 @@ function activate(context) {
                 case "addStep":
                     if (!plan)
                         plan = { steps: [], request: "Manual", suggestions: [] };
-                    plan.steps.push({ id: `${Date.now()}`, title: msg.step.title, description: msg.step.description, agent: msg.step.agent, status: "pending" });
+                    plan.steps.push({
+                        id: `${Date.now()}`,
+                        title: msg.step.title,
+                        description: msg.step.description,
+                        agent: msg.step.agent,
+                        status: "pending",
+                    });
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
                     sendPlan(plan);
@@ -72,7 +85,7 @@ function activate(context) {
                 case "updateStep":
                     if (!plan)
                         break;
-                    const idx = plan.steps.findIndex(s => s.id === msg.step.id);
+                    const idx = plan.steps.findIndex((s) => s.id === msg.step.id);
                     if (idx === -1)
                         break;
                     plan.steps[idx] = { ...plan.steps[idx], ...msg.step };
@@ -83,7 +96,7 @@ function activate(context) {
                 case "deleteStep":
                     if (!plan)
                         break;
-                    plan.steps = plan.steps.filter(s => s.id !== msg.id);
+                    plan.steps = plan.steps.filter((s) => s.id !== msg.id);
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
                     sendPlan(plan);
@@ -91,10 +104,10 @@ function activate(context) {
                 case "moveStep":
                     if (!plan)
                         break;
-                    const s = plan.steps.find(s => s.id === msg.id);
-                    if (!s)
+                    const stepToMove = plan.steps.find((s) => s.id === msg.id);
+                    if (!stepToMove)
                         break;
-                    s.status = msg.status;
+                    stepToMove.status = msg.status;
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
                     sendPlan(plan);
@@ -102,19 +115,19 @@ function activate(context) {
                 case "executeStep":
                     if (!plan)
                         break;
-                    const se = plan.steps.find(s => s.id === msg.id);
-                    if (!se)
+                    const stepToExec = plan.steps.find((s) => s.id === msg.id);
+                    if (!stepToExec)
                         break;
-                    se.status = "in-progress";
+                    stepToExec.status = "in-progress";
                     sendPlan(plan);
-                    const { outputUri, error } = await (0, agents_1.runAgent)(se);
+                    const { outputUri, error } = await (0, agents_1.runAgent)(stepToExec);
                     if (error) {
-                        se.status = "error";
-                        se.error = error;
+                        stepToExec.status = "error";
+                        stepToExec.error = error;
                     }
                     else {
-                        se.status = "done";
-                        se.outputUri = outputUri;
+                        stepToExec.status = "done";
+                        stepToExec.outputUri = outputUri;
                     }
                     plan.suggestions = (0, planner_1.suggestNextSteps)(plan);
                     await store.save(plan);
@@ -144,13 +157,16 @@ function activate(context) {
                     vscode.window.showInformationMessage("PlanPilot: All steps executed");
                     break;
                 case "resetPlan":
-                    await store.save(undefined);
+                    await store.reset();
                     sendPlan(undefined);
-                    vscode.window.showInformationMessage("PlanPilot: Plan reset");
+                    vscode.window.showInformationMessage("Plan reset.");
                     break;
+                default:
+                    console.warn("Unknown message type:", msg.type);
             }
         });
-    }));
+    });
+    context.subscriptions.push(openPlannerCmd);
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map
