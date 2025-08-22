@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { Buffer } from "buffer"; // ✅ ensures Buffer is available
+import { Buffer } from "buffer";
 import { PlanStep } from "./types";
 
 async function ensureOutputFolder(): Promise<vscode.Uri | undefined> {
