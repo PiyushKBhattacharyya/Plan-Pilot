@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlanPilot</title>
+    <link rel="stylesheet" href="{{styleUri}}">
+</head>
+<body>
+    <div class="container">
+        <!-- Enhanced Header like Traycer AI -->
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo-icon">🎯</div>
+                <div class="brand-info">
+                    <div class="title">PlanPilot</div>
+                    <div class="subtitle">AI Planning Assistant</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-icon" onclick="refreshPlans()" title="Refresh">🔄</button>
+                <button class="btn-icon" onclick="showSettings()" title="Settings">⚙️</button>
+            </div>
+        </div>
+
+        <!-- Quick Actions Bar -->
+        <div class="quick-actions">
+            <button class="btn btn-primary-large" onclick="generatePlan()">
+                <span class="btn-icon">🚀</span>
+                Generate Plan
+            </button>
+        </div>
+
+        <!-- Generate Section -->
+        <div class="generate-section">
+            <div class="section-header">
+                <h3>📋 New Implementation Plan</h3>
+                <p class="section-description">Describe your development objective to generate a detailed plan</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="objective">Development Objective *</label>
+                <textarea 
+                    id="objective" 
+                    placeholder="Example: Build a real-time chat system with user authentication, message history, and file sharing capabilities..."
+                    rows="4"
+                    class="enhanced-textarea"
+                ></textarea>
+                <div class="char-count" id="charCount">0 characters</div>
+            </div>
+
+            <!-- Enhanced Context Section -->
+            <div class="context-section">
+                <div class="context-header">
+                    <label class="context-label">
+                        <span class="label-icon">📁</span>
+                        Project Context
+                    </label>
+                    <div class="context-actions">
+                        <button class="btn btn-small btn-secondary" onclick="loadWorkspaceFiles()">
+                            <span class="btn-icon">📂</span>
+                            Browse Files
+                        </button>
+                        <button class="btn btn-small btn-secondary" onclick="detectTechStack()">
+                            <span class="btn-icon">🔍</span>
+                            Auto-Detect
+                        </button>
+                    </div>
+                </div>
+
+                <div id="selectedFiles" class="file-browser hidden">
+                    <div class="file-browser-header">
+                        <span class="file-count" id="fileCount">0 files selected</span>
+                        <button class="btn-text" onclick="clearFiles()">Clear All</button>
+                    </div>
+                    <div class="file-list" id="fileBrowser"></div>
+                </div>
+
+                <div id="contextSummary" class="context-summary hidden">
+                    <div class="context-chips">
+                        <div class="context-item">
+                            <strong class="context-label-small">Files:</strong>
+                            <div id="selectedFilesList" class="selected-files-list"></div>
+                        </div>
+                        <div class="context-item">
+                            <strong class="context-label-small">Tech Stack:</strong>
+                            <div id="techStackList" class="tech-stack-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Additional Requirements</label>
+                    <textarea 
+                        id="notes" 
+                        placeholder="Add specific requirements, constraints, or preferences..."
+                        rows="3"
+                        class="notes-textarea"
+                    ></textarea>
+                </div>
+            </div>
+
+            <div id="progressContainer" class="progress-container hidden">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progressText">Generating plan...</div>
+            </div>
+
+            <button id="generateBtn" class="btn btn-primary btn-generate" onclick="generatePlan()">
+                <span class="btn-icon">🚀</span>
+                Generate Implementation Plan
+            </button>
+        </div>
+
+        <!-- Enhanced Plans Section -->
+        <div class="plans-section">
+            <div class="section-header">
+                <div class="section-title-group">
+                    <h3 class="section-title">📋 Your Plans</h3>
+                    <div class="plans-count" id="plansCount">0 plans</div>
+                </div>
+                <div class="section-actions">
+                    <button class="btn-icon" onclick="refreshPlans()" title="Refresh">🔄</button>
+                </div>
+            </div>
+            <div id="plansContainer" class="plans-container">
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>Loading plans...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+        <span class="status-text">Ready</span>
+    </div>
+
+    <script src="{{scriptUri}}"></script>
+</body>
+</html>

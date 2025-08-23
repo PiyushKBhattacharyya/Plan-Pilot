@@ -37,13 +37,15 @@ export class GeminiService {
   }
 
   private initializeApi() {
+    
     const config = vscode.workspace.getConfiguration('planpilot');
     let apiKey = config.get<string>('geminiApiKey');
     
-    // For testing purposes, you can temporarily set your API key here
-    // Replace 'YOUR_API_KEY_HERE' with your actual Gemini API key
-    // apiKey = 'YOUR_API_KEY_HERE';
-    
+    // Get API key from environment variable as fallback
+    if (!apiKey) {
+      apiKey = process.env.GEMINI_API_KEY || 'AIzaSyAvNAS3RgjEGBOcUaBn2E6OErsmzkQ-aeQ';
+    }
+      
     if (apiKey) {
       this.ai = new GoogleGenAI({ apiKey });
     }
@@ -51,7 +53,7 @@ export class GeminiService {
 
   async generateImplementationPlan(request: PlanGenerationRequest): Promise<Plan> {
     if (!this.ai) {
-      throw new Error('Gemini API key not configured. Please set planpilot.geminiApiKey in settings.');
+      throw new Error('Gemini API key not configured. Please set planpilot.geminiApiKey in settings or GEMINI_API_KEY environment variable.');
     }
 
     try {
@@ -197,7 +199,7 @@ Please create a comprehensive implementation plan for this objective.`;
 
   async exportPlanForAgent(plan: Plan, format: string): Promise<ExportFormat> {
     if (!this.ai) {
-      throw new Error('Gemini API key not configured. Please set planpilot.geminiApiKey in settings.');
+      throw new Error('Gemini API key not configured. Please set planpilot.geminiApiKey in settings or GEMINI_API_KEY environment variable.');
     }
 
     try {
