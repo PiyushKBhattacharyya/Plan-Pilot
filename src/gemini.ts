@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { type PlanGenerationRequest, type Plan, type Phase, type ExportFormat, type FileModification, type Step } from "./types";
 import * as vscode from 'vscode';
 
+
 interface GeminiPhaseResponse {
   id: string;
   title: string;
@@ -43,7 +44,7 @@ export class GeminiService {
     
     // Get API key from environment variable as fallback
     if (!apiKey) {
-      apiKey = process.env.GEMINI_API_KEY || 'AIzaSyAvNAS3RgjEGBOcUaBn2E6OErsmzkQ-aeQ';
+      apiKey = process.env.GEMINI_API_KEY || '';
     }
       
     if (apiKey) {
