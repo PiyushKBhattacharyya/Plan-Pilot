@@ -2,7 +2,6 @@ import { GoogleGenAI } from "@google/genai";
 import { type PlanGenerationRequest, type Plan, type Phase, type ExportFormat, type FileModification, type Step } from "./types";
 import * as vscode from 'vscode';
 
-
 interface GeminiPhaseResponse {
   id: string;
   title: string;
@@ -30,6 +29,20 @@ interface GeminiPlanResponse {
   filesAffected: number;
 }
 
+// Enhanced context interface to match all usage patterns
+interface EnhancedContext {
+  techStack?: string[];
+  existingFiles?: string[];
+  projectDescription?: string;
+  architecture?: string;
+  existingFeatures?: string[];
+  codeQuality?: string;
+  recommendations?: string[];
+  userNotes?: string;
+  keyFiles?: string[];
+  fileContents?: {[key: string]: string};
+}
+
 export class GeminiService {
   private ai: GoogleGenAI | null = null;
 
@@ -38,17 +51,38 @@ export class GeminiService {
   }
 
   private initializeApi() {
-    
     const config = vscode.workspace.getConfiguration('planpilot');
     let apiKey = config.get<string>('geminiApiKey');
     
     // Get API key from environment variable as fallback
     if (!apiKey) {
-      apiKey = process.env.GEMINI_API_KEY || '';
+      apiKey = process.env.GEMINI_API_KEY || "";
     }
       
     if (apiKey) {
       this.ai = new GoogleGenAI({ apiKey });
+    }
+  }
+
+  public isConfigured(): boolean {
+    return this.ai !== null;
+  }
+
+  async analyzeContent(prompt: string): Promise<string> {
+    if (!this.ai) {
+      throw new Error('Gemini API key not configured. Please set planpilot.geminiApiKey in settings or GEMINI_API_KEY environment variable.');
+    }
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        contents: prompt,
+      });
+
+      return response.text || '';
+    } catch (error) {
+      console.error("Gemini API Error in analyzeContent:", error);
+      throw new Error(`Failed to analyze content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -58,48 +92,11 @@ export class GeminiService {
     }
 
     try {
-      const workspaceInfo = this.getWorkspaceContext();
-      
-      const systemPrompt = `You are an expert software architect and development planner. Your task is to analyze development objectives and create detailed, actionable implementation plans.
-
-Context Information:
-${workspaceInfo}
-
-Guidelines:
-1. Break down the objective into logical, sequential phases
-2. Each phase should have a clear title, description, and category
-3. Provide realistic time estimates in hours
-4. Specify exact files that need to be created, modified, or deleted
-5. Include detailed step-by-step instructions for each phase
-6. Consider dependencies between phases
-7. Use appropriate categories: Database, Backend, Frontend, API, Security, Features, Testing, etc.
-
-Response Format:
-- title: A concise title for the overall implementation plan
-- phases: Array of implementation phases
-- estimatedHours: Total estimated hours for the entire plan
-- filesAffected: Total number of files that will be created/modified/deleted
-
-Each phase must include:
-- id: Unique identifier
-- title: Phase name
-- description: Brief description of what this phase accomplishes
-- category: One of the predefined categories
-- estimatedHours: Time estimate for this phase
-- files: Array of file modifications with path, action, and description
-- steps: Ordered array of implementation steps with descriptions and optional details
-- dependencies: Optional array of phase IDs that must be completed first`;
-
-      const userPrompt = `Objective: ${request.objective}
-
-${request.context?.techStack ? `Tech Stack Context: ${request.context.techStack.join(', ')}` : ''}
-${request.context?.projectDescription ? `Project Context: ${request.context.projectDescription}` : ''}
-${request.context?.existingFiles ? `Existing Files: ${request.context.existingFiles.join(', ')}` : ''}
-
-Please create a comprehensive implementation plan for this objective.`;
+      const systemPrompt = this.buildEnhancedSystemPrompt(request.context);
+      const userPrompt = this.buildEnhancedUserPrompt(request);
 
       const response = await this.ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-exp",
         config: {
           systemInstruction: systemPrompt,
           responseMimeType: "application/json",
@@ -198,6 +195,105 @@ Please create a comprehensive implementation plan for this objective.`;
     }
   }
 
+  private buildEnhancedSystemPrompt(context?: EnhancedContext): string {
+    let systemPrompt = `You are an expert software architect and development planner. Your task is to analyze development objectives and create detailed, actionable implementation plans.`;
+
+    if (context) {
+      systemPrompt += `\n\nProject Context Analysis:`;
+      
+      if (context.projectDescription) {
+        systemPrompt += `\n- Project: ${context.projectDescription}`;
+      }
+      
+      if (context.techStack && context.techStack.length > 0) {
+        systemPrompt += `\n- Technology Stack: ${context.techStack.join(', ')}`;
+      }
+      
+      if (context.architecture) {
+        systemPrompt += `\n- Architecture: ${context.architecture}`;
+      }
+      
+      if (context.existingFeatures && context.existingFeatures.length > 0) {
+        systemPrompt += `\n- Existing Features: ${context.existingFeatures.join(', ')}`;
+      }
+      
+      if (context.codeQuality) {
+        systemPrompt += `\n- Code Quality Assessment: ${context.codeQuality}`;
+      }
+      
+      if (context.recommendations && context.recommendations.length > 0) {
+        systemPrompt += `\n- Development Recommendations: ${context.recommendations.join('; ')}`;
+      }
+
+      if (context.fileContents && Object.keys(context.fileContents).length > 0) {
+        systemPrompt += `\n\nKey File Contents for Reference:`;
+        Object.entries(context.fileContents).forEach(([path, content]) => {
+          systemPrompt += `\n\n${path}:\n${content.substring(0, 1000)}...`;
+        });
+      }
+    }
+
+    systemPrompt += `\n\nGuidelines:
+1. Base your recommendations on the actual project context and existing codebase
+2. Maintain consistency with the established architecture and patterns
+3. Suggest realistic file modifications based on the existing project structure
+4. Consider the current technology stack when proposing solutions
+5. Break down the objective into logical, sequential phases
+6. Each phase should have a clear title, description, and category
+7. Provide realistic time estimates in hours
+8. Specify exact files that need to be created, modified, or deleted
+9. Include detailed step-by-step instructions for each phase
+10. Consider dependencies between phases
+11. Use appropriate categories based on the project type: Database, Backend, Frontend, API, Security, Features, Testing, DevOps, Configuration, etc.
+
+Response Format:
+- title: A concise title for the overall implementation plan
+- phases: Array of implementation phases
+- estimatedHours: Total estimated hours for the entire plan
+- filesAffected: Total number of files that will be created/modified/deleted
+
+Each phase must include:
+- id: Unique identifier
+- title: Phase name
+- description: Brief description of what this phase accomplishes
+- category: One of the appropriate categories for this project
+- estimatedHours: Time estimate for this phase
+- files: Array of file modifications with path, action, and description
+- steps: Ordered array of implementation steps with descriptions and optional details
+- dependencies: Optional array of phase IDs that must be completed first`;
+
+    return systemPrompt;
+  }
+
+  private buildEnhancedUserPrompt(request: PlanGenerationRequest): string {
+    let userPrompt = `Development Objective: ${request.objective}`;
+
+    if (request.context) {
+      if (request.context.userNotes) {
+        userPrompt += `\n\nAdditional Requirements: ${request.context.userNotes}`;
+      }
+
+      if (request.context.keyFiles && request.context.keyFiles.length > 0) {
+        userPrompt += `\n\nKey Files to Consider: ${request.context.keyFiles.join(', ')}`;
+      }
+
+      if (request.context.existingFiles && request.context.existingFiles.length > 0) {
+        userPrompt += `\n\nSelected Files for Reference: ${request.context.existingFiles.join(', ')}`;
+      }
+    }
+
+    userPrompt += `\n\nPlease create a comprehensive implementation plan that:
+1. Leverages the existing project structure and patterns
+2. Maintains compatibility with the current technology stack
+3. Provides specific, actionable steps
+4. Includes realistic time estimates
+5. Considers the project's current state and architecture
+
+Focus on practical implementation details that a developer can immediately act upon.`;
+
+    return userPrompt;
+  }
+
   async exportPlanForAgent(plan: Plan, format: string): Promise<ExportFormat> {
     if (!this.ai) {
       throw new Error('Gemini API key not configured. Please set planpilot.geminiApiKey in settings or GEMINI_API_KEY environment variable.');
@@ -261,7 +357,7 @@ Transform this plan into an optimized prompt for the ${format} coding assistant.
       }, null, 2);
 
       const response = await this.ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-exp",
         config: {
           systemInstruction: systemPrompt,
         },
@@ -290,15 +386,96 @@ Transform this plan into an optimized prompt for the ${format} coding assistant.
     }
   }
 
-  private getWorkspaceContext(): string {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
-      return '- No workspace folder open';
+  async analyzeTechStack(fileContents: string[], filePaths: string[]): Promise<string[]> {
+    if (!this.ai) {
+      return [];
     }
 
-    const workspaceFolder = workspaceFolders[0];
-    return `- Workspace: ${workspaceFolder.name}
-- Path: ${workspaceFolder.uri.fsPath}`;
+    try {
+      const prompt = `Analyze these project files to determine the complete technology stack:
+
+Files analyzed:
+${filePaths.map((path, index) => `
+${path}:
+${fileContents[index]?.substring(0, 800) || 'Unable to read content'}
+`).join('\n')}
+
+Identify:
+1. Programming languages used
+2. Frameworks and libraries
+3. Databases and data storage
+4. Build tools and package managers
+5. Testing frameworks
+6. Development tools and utilities
+7. Deployment and infrastructure technologies
+
+Return a comprehensive list of technologies, avoiding duplicates and being specific about versions where possible.`;
+
+      const response = await this.ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        contents: prompt
+      });
+
+      // Extract technologies from the response
+      const technologies = this.extractTechnologiesFromResponse(response.text || '');
+      return technologies;
+
+    } catch (error) {
+      console.error('Error analyzing tech stack:', error);
+      return [];
+    }
+  }
+
+  private extractTechnologiesFromResponse(response: string): string[] {
+    const technologies = new Set<string>();
+    
+    // Common technology patterns
+    const techPatterns = [
+      /React(?:\s+\d+)?/gi,
+      /Vue(?:\.js)?(?:\s+\d+)?/gi,
+      /Angular(?:\s+\d+)?/gi,
+      /Node\.js(?:\s+\d+)?/gi,
+      /Express(?:\.js)?(?:\s+\d+)?/gi,
+      /TypeScript(?:\s+\d+)?/gi,
+      /JavaScript/gi,
+      /Python(?:\s+\d+)?/gi,
+      /Java(?:\s+\d+)?/gi,
+      /MongoDB/gi,
+      /PostgreSQL/gi,
+      /MySQL/gi,
+      /Redis/gi,
+      /Docker/gi,
+      /Kubernetes/gi,
+      /AWS/gi,
+      /Firebase/gi,
+      /Webpack/gi,
+      /Vite/gi,
+      /Jest/gi,
+      /Cypress/gi,
+      /ESLint/gi,
+      /Prettier/gi
+    ];
+
+    techPatterns.forEach(pattern => {
+      const matches = response.match(pattern);
+      if (matches) {
+        matches.forEach(match => technologies.add(match.trim()));
+      }
+    });
+
+    // Also look for bullet points or lists that mention technologies
+    const lines = response.split('\n');
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+      if (trimmedLine.match(/^[-*•]\s+/)) {
+        const tech = trimmedLine.replace(/^[-*•]\s+/, '').trim();
+        if (tech.length > 2 && tech.length < 50) {
+          technologies.add(tech);
+        }
+      }
+    });
+
+    return Array.from(technologies).slice(0, 20); // Limit results
   }
 
   private generateId(): string {

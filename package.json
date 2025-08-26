@@ -1,0 +1,115 @@
+{
+  "name": "planpilot",
+  "displayName": "PlanPilot",
+  "description": "The Planning Layer for Development - Transform objectives into actionable implementation plans",
+  "version": "0.0.1",
+  "publisher": "Piysuh",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "planpilot": [
+        {
+          "id": "planpilot.sidebar",
+          "name": "PlanPilot",
+          "type": "webview",
+          "when": "true"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "planpilot",
+          "title": "PlanPilot",
+          "icon": "$(target)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "planpilot.generatePlan",
+        "title": "PlanPilot: Generate Plan",
+        "category": "PlanPilot",
+        "icon": "$(target)"
+      },
+      {
+        "command": "planpilot.showPlans",
+        "title": "PlanPilot: Show Plans", 
+        "category": "PlanPilot",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "planpilot.exportPlan",
+        "title": "PlanPilot: Export Plan",
+        "category": "PlanPilot",
+        "icon": "$(export)"
+      },
+      {
+        "command": "planpilot.deletePlan",
+        "title": "PlanPilot: Delete Plan",
+        "category": "PlanPilot",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "planpilot.refresh",
+        "title": "PlanPilot: Refresh",
+        "category": "PlanPilot",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "planpilot.generatePlan"
+        },
+        {
+          "command": "planpilot.showPlans"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "planpilot.generatePlan",
+          "when": "view == planpilot.sidebar",
+          "group": "navigation"
+        },
+        {
+          "command": "planpilot.refresh",
+          "when": "view == planpilot.sidebar",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "PlanPilot",
+      "properties": {
+        "planpilot.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your Google Gemini API key for plan generation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/vscode": "^1.74.0",
+    "@types/node": "^18.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^1.15.0"
+  }
+}

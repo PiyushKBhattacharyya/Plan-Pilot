@@ -34,13 +34,23 @@ export interface Plan {
   updatedAt: Date;
 }
 
+// Enhanced context interface to match all usage patterns
+export interface PlanGenerationContext {
+  techStack?: string[];
+  existingFiles?: string[];
+  projectDescription?: string;
+  architecture?: string;
+  existingFeatures?: string[];
+  codeQuality?: string;
+  recommendations?: string[];
+  userNotes?: string;
+  keyFiles?: string[];
+  fileContents?: {[key: string]: string};
+}
+
 export interface PlanGenerationRequest {
   objective: string;
-  context?: {
-    techStack?: string[];
-    existingFiles?: string[];
-    projectDescription?: string;
-  };
+  context?: PlanGenerationContext;
 }
 
 export interface ExportFormat {
